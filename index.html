@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Safe Phrasal Verbs</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Roboto+Mono:wght@500;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    font-family: 'Orbitron', sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    user-select: none;
+  }
+
+  /* 🖼️ ФОНОВАЯ КАРТИНКА — занимает весь экран, позади всего */
+  .game-bg {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: url('1.png') center/cover no-repeat;
+    z-index: 0;
+  }
+
+  /* Затемнение поверх картинки, чтобы интерфейс читался */
+  .game-bg::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.55);
+  }
+
+  .safe-texture {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 1;
+    opacity: 0.04;
+    background-image: repeating-linear-gradient(0deg, transparent, transparent 2px, #fff 2px, #fff 4px);
+    pointer-events: none;
+  }
+
+  .game-container {
+    position: relative;
+    z-index: 10;
+    width: 700px;
+    height: 700px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .lock-wheel {
+    position: absolute;
+    width: 600px;
+    height: 600px;
+    border-radius: 50%;
+    /* Полупрозрачный градиент — колесо теперь видно сквозь него */
+    background: radial-gradient(circle at 40% 35%, rgba(60,60,60,0.5) 0%, rgba(30,30,30,0.6) 40%, rgba(15,15,15,0.7) 80%, rgba(5,5,5,0.8) 100%);
+    border: 10px solid rgba(100,100,100,0.7);
+    box-shadow: 0 0 30px rgba(0,0,0,0.8), inset 0 0 60px rgba(0,0,0,0.5), 0 0 100px rgba(0,0,0,0.4), inset 0 2px 4px rgba(255,255,255,0.1);
+    overflow: hidden;
+  }
+
+  .lock-wheel::after {
+    content: '';
+    position: absolute;
+    top: 15px; left: 15px; right: 15px; bottom: 15px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.06);
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  .wheel-notches {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 3;
+  }
+
+  .notch {
+    position: absolute;
+    top: 0; left: 50%;
+    width: 4px;
+    height: 18px;
+    background: linear-gradient(to bottom, rgba(220,220,220,0.5), rgba(80,80,80,0.15));
+    transform-origin: center 300px;
+    border-radius: 1px;
+  }
+
+  .verb-ring {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0; left: 0;
+    z-index: 4;
+  }
+
+  .verb-slot {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 5;
+  }
+
+  .verb-btn {
+    width: 92px;
+    height: 38px;
+    background: linear-gradient(180deg, rgba(58,58,58,0.9) 0%, rgba(34,34,34,0.95) 50%, rgba(26,26,26,0.98) 100%);
+    border: 2px solid rgba(85,85,85,0.7);
+    border-radius: 8px;
+    color: #ccc;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.08);
+    transition: all 0.3s ease;
+    user-select: none;
+  }
+
+  .verb-btn:hover {
+    background: linear-gradient(180deg, rgba(74,74,74,0.9) 0%, rgba(51,51,51,0.95) 50%, rgba(34,34,34,0.98) 100%);
+    border-color: rgba(119,119,119,0.7);
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.1);
+    transform: translate(-50%, -50%) scale(1.12);
+  }
+
+  .verb-btn.correct {
+    background: linear-gradient(180deg, #2a6e2a 0%, #1a4a1a 50%, #0d300d 100%) !important;
+    border-color: #4a9a4a !important;
+    color: #8fff8f !important;
+    box-shadow: 0 0 15px rgba(50,200,50,0.3), inset 0 1px 2px rgba(100,255,100,0.15) !important;
+  }
+
+  .verb-btn.wrong {
+    background: linear-gradient(180deg, #6e2a2a 0%, #4a1a1a 50%, #300d0d 100%) !important;
+    border-color: #9a4a4a !important;
+    color: #ff8f8f !important;
+    box-shadow: 0 0 15px rgba(200,50,50,0.3), inset 0 1px 2px rgba(255,100,100,0.15) !important;
+    animation: wrongShake 0.5s ease;
+  }
+
+  @keyframes wrongShake {
+    0%, 100% { transform: translate(-50%, -50%) translateX(0); }
+    20% { transform: translate(-50%, -50%) translateX(-8px); }
+    40% { transform: translate(-50%, -50%) translateX(8px); }
+    60% { transform: translate(-50%, -50%) translateX(-5px); }
+    80% { transform: translate(-50%, -50%) translateX(5px); }
+  }
+
+  .center-card-area {
+    position: absolute;
+    width: 180px;
+    height: 180px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    perspective: 800px;
+    z-index: 20;
+  }
+
+  .center-card {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+  }
+
+  .center-card.flipped { transform: rotateY(180deg); }
+
+  .card-face {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+  }
+
+  .card-front {
+    background: radial-gradient(circle at 40% 35%, rgba(85,85,85,0.9) 0%, rgba(51,51,51,0.92) 50%, rgba(26,26,26,0.95) 100%);
+    border: 4px solid rgba(119,119,119,0.6);
+    box-shadow: 0 0 30px rgba(0,0,0,0.6), inset 0 0 30px rgba(0,0,0,0.3), 0 0 60px rgba(0,0,0,0.3);
+  }
+
+  .card-front::before {
+    content: '';
+    position: absolute;
+    top: 8px; left: 8px; right: 8px; bottom: 8px;
+    border-radius: 50%;
+    border: 2px solid rgba(85,85,85,0.5);
+  }
+
+  .card-back {
+    background: radial-gradient(circle at 40% 35%, rgba(85,85,85,0.9) 0%, rgba(51,51,51,0.92) 50%, rgba(26,26,26,0.95) 100%);
+    border: 4px solid rgba(119,119,119,0.6);
+    box-shadow: 0 0 30px rgba(0,0,0,0.6), inset 0 0 30px rgba(0,0,0,0.3);
+    transform: rotateY(180deg);
+  }
+
+  .card-back::before {
+    content: '';
+    position: absolute;
+    top: 8px; left: 8px; right: 8px; bottom: 8px;
+    border-radius: 50%;
+    border: 2px solid rgba(85,85,85,0.5);
+  }
+
+  .card-label {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 10px;
+    color: rgba(136,136,136,0.9);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 5px;
+  }
+
+  .card-preposition {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 38px;
+    font-weight: 900;
+    color: #e0e0e0;
+    text-shadow: 0 0 10px rgba(255,255,255,0.2);
+  }
+
+  .card-round {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 10px;
+    color: #aaa;
+    margin-top: 6px;
+    letter-spacing: 1px;
+  }
+
+  .card-counter {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 10px;
+    color: #777;
+    margin-top: 4px;
+    letter-spacing: 1px;
+  }
+
+  .round-pair-dots {
+    display: flex;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .pair-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    border: 2px solid #555;
+    background: transparent;
+    transition: all 0.3s;
+  }
+
+  .pair-dot.filled {
+    background: #4aff4a;
+    border-color: #4aff4a;
+    box-shadow: 0 0 8px rgba(74,255,74,0.5);
+  }
+
+  .glow-ring {
+    position: absolute;
+    width: 220px;
+    height: 220px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    border: 2px solid transparent;
+    z-index: 18;
+    pointer-events: none;
+    transition: all 0.5s ease;
+  }
+
+  .glow-ring.glow-green {
+    border-color: rgba(74, 255, 74, 0.5);
+    box-shadow: 0 0 30px rgba(74,255,74,0.3), inset 0 0 30px rgba(74,255,74,0.1);
+  }
+
+  .glow-ring.glow-red {
+    border-color: rgba(255, 74, 74, 0.5);
+    box-shadow: 0 0 30px rgba(255,74,74,0.3), inset 0 0 30px rgba(255,74,74,0.1);
+  }
+
+  .top-bar {
+    position: fixed;
+    top: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 30;
+    display: flex;
+    gap: 15px;
+    align-items: center;
+  }
+
+  .score-box {
+    background: linear-gradient(180deg, rgba(42,42,42,0.9) 0%, rgba(26,26,26,0.95) 100%);
+    border: 2px solid rgba(85,85,85,0.6);
+    border-radius: 12px;
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px);
+  }
+
+  .score-label {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 10px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .score-value {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 20px;
+    font-weight: 900;
+    color: #e0e0e0;
+  }
+
+  .score-value.green { color: #4aff4a; }
+  .score-value.red { color: #ff4a4a; }
+
+  .timer-box {
+    background: linear-gradient(180deg, rgba(42,42,42,0.9) 0%, rgba(26,26,26,0.95) 100%);
+    border: 2px solid rgba(85,85,85,0.6);
+    border-radius: 12px;
+    padding: 8px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    backdrop-filter: blur(4px);
+  }
+
+  .timer-display {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    color: #ccc;
+    min-width: 65px;
+    text-align: center;
+  }
+
+  .timer-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    border: 2px solid rgba(85,85,85,0.6);
+    background: linear-gradient(180deg, #3a3a3a, #222);
+    color: #aaa;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    transition: all 0.2s;
+  }
+
+  .timer-btn:hover { border-color: #777; color: #fff; }
+
+  .timer-btn.active {
+    border-color: #4aff4a;
+    color: #4aff4a;
+    box-shadow: 0 0 10px rgba(74,255,74,0.3);
+  }
+
+  .progress-bar-container {
+    position: fixed;
+    top: 65px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 320px;
+    height: 6px;
+    background: rgba(34,34,34,0.8);
+    border-radius: 3px;
+    border: 1px solid rgba(68,68,68,0.6);
+    z-index: 30;
+    overflow: hidden;
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #4aff4a, #80ff80);
+    border-radius: 3px;
+    transition: width 0.4s ease;
+    box-shadow: 0 0 10px rgba(74,255,74,0.4);
+    width: 0%;
+  }
+
+  .round-progress {
+    position: fixed;
+    top: 78px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 30;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 11px;
+    color: rgba(119,119,119,0.8);
+    letter-spacing: 1px;
+  }
+
+  .remaining-pills {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .pill {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 10px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(85,85,85,0.5);
+    background: rgba(42,42,42,0.7);
+    color: #888;
+    transition: all 0.3s;
+    backdrop-filter: blur(3px);
+  }
+
+  .pill.active-pill {
+    border-color: #ffaa00;
+    color: #ffaa00;
+    background: rgba(255,170,0,0.15);
+    box-shadow: 0 0 8px rgba(255,170,0,0.2);
+  }
+
+  .pill.done-pill {
+    border-color: #4a9a4a;
+    color: #4aff4a;
+    background: rgba(74,255,74,0.1);
+    text-decoration: line-through;
+    opacity: 0.6;
+  }
+
+  .combo-display {
+    position: fixed;
+    top: 95px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 30;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 14px;
+    color: #ffaa00;
+    letter-spacing: 2px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    text-shadow: 0 0 10px rgba(255,170,0,0.5);
+  }
+
+  .combo-display.visible { opacity: 1; }
+
+  .pair-feedback {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 50;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 22px;
+    font-weight: 900;
+    pointer-events: none;
+    opacity: 0;
+    transition: all 0.4s ease;
+  }
+
+  .pair-feedback.correct-fb { color: #4aff4a; text-shadow: 0 0 20px rgba(74,255,74,0.6); }
+  .pair-feedback.wrong-fb { color: #ff4a4a; text-shadow: 0 0 20px rgba(255,74,74,0.6); }
+  .pair-feedback.show { opacity: 1; transform: translate(-50%, -60%); }
+
+  .round-transition-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.7);
+    z-index: 40;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .round-transition-overlay.visible {
+    display: flex;
+    animation: fadeInOut 1.5s ease forwards;
+  }
+
+  @keyframes fadeInOut {
+    0% { opacity: 0; }
+    20% { opacity: 1; }
+    80% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+
+  .round-transition-text {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 36px;
+    font-weight: 900;
+    color: #ffaa00;
+    text-shadow: 0 0 30px rgba(255,170,0,0.5);
+  }
+
+  .round-transition-sub {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 16px;
+    color: #aaa;
+    letter-spacing: 2px;
+  }
+
+  .win-overlay {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.85);
+    z-index: 100;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .win-overlay.visible { display: flex; }
+
+  @keyframes showWin { from { opacity: 0; } to { opacity: 1; } }
+
+  .win-title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 48px;
+    font-weight: 900;
+    color: #4aff4a;
+    text-shadow: 0 0 30px rgba(74,255,74,0.5);
+    animation: winPulse 1s ease infinite alternate;
+  }
+
+  @keyframes winPulse {
+    from { text-shadow: 0 0 30px rgba(74,255,74,0.5); }
+    to { text-shadow: 0 0 60px rgba(74,255,74,0.8), 0 0 100px rgba(74,255,74,0.3); }
+  }
+
+  .win-subtitle {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 16px;
+    color: #aaa;
+    letter-spacing: 2px;
+  }
+
+  .win-stats {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 16px;
+    color: #ccc;
+    margin-top: 10px;
+    line-height: 1.8;
+    text-align: center;
+  }
+
+  .restart-btn {
+    margin-top: 20px;
+    padding: 12px 40px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    background: linear-gradient(180deg, #3a6a3a 0%, #2a4a2a 100%);
+    border: 2px solid #4a9a4a;
+    border-radius: 12px;
+    color: #fff;
+    cursor: pointer;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    transition: all 0.3s;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+  }
+
+  .restart-btn:hover {
+    background: linear-gradient(180deg, #4a7a4a 0%, #3a5a3a 100%);
+    box-shadow: 0 4px 20px rgba(74,255,74,0.3);
+    transform: translateY(-2px);
+  }
+
+  .instructions {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 30;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 11px;
+    color: rgba(85,85,85,0.7);
+    text-align: center;
+    letter-spacing: 1px;
+    line-height: 1.6;
+  }
+
+  .flip-hint {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Roboto Mono', monospace;
+    font-size: 10px;
+    color: rgba(102,102,102,0.8);
+    letter-spacing: 1px;
+    z-index: 25;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+
+<!-- 🖼️ ФОНОВАЯ КАРТИНКА — позади всего -->
+<div class="game-bg"></div>
+
+<!-- Текстура-шум поверх фона -->
+<div class="safe-texture"></div>
+
+<!-- Интерфейс -->
+<div class="top-bar">
+  <div class="score-box">
+    <span class="score-label">Pairs</span>
+    <span class="score-value green" id="correctScore">0</span>
+  </div>
+  <div class="score-box">
+    <span class="score-label">Miss</span>
+    <span class="score-value red" id="wrongScore">0</span>
+  </div>
+  <div class="timer-box">
+    <button class="timer-btn" id="timerToggle" onclick="toggleTimer()">▶</button>
+    <span class="timer-display" id="timerDisplay">00:00</span>
+  </div>
+</div>
+
+<div class="progress-bar-container">
+  <div class="progress-bar" id="progressBar"></div>
+</div>
+<div class="round-progress" id="roundProgress"></div>
+
+<div class="combo-display" id="comboDisplay"></div>
+
+<!-- Игровое поле -->
+<div class="game-container">
+  <div class="lock-wheel">
+    <div class="wheel-notches" id="wheelNotches"></div>
+    <div class="verb-ring" id="verbRing"></div>
+  </div>
+
+  <div class="glow-ring" id="glowRing"></div>
+
+  <div class="center-card-area" id="centerCardArea">
+    <div class="center-card" id="centerCard">
+      <div class="card-face card-front">
+        <span class="card-label">Preposition</span>
+        <span class="card-preposition" id="prepositionText">out</span>
+        <span class="card-round" id="roundLabel">Round 1</span>
+        <span class="card-counter" id="pairCounter">0 / 4</span>
+        <div class="round-pair-dots" id="pairDots"></div>
+      </div>
+      <div class="card-face card-back">
+        <span class="card-label">Loading</span>
+        <span class="card-preposition" id="prepositionTextBack">?</span>
+        <span class="card-round">Next round</span>
+      </div>
+    </div>
+    <div class="flip-hint">Click to flip</div>
+  </div>
+</div>
+
+<div class="pair-feedback" id="pairFeedback"></div>
+
+<div class="round-transition-overlay" id="roundTransition">
+  <div class="round-transition-text" id="roundTransText"></div>
+  <div class="round-transition-sub" id="roundTransSub"></div>
+</div>
+
+<div class="win-overlay" id="winOverlay">
+  <div class="win-title">SAFE UNLOCKED</div>
+  <div class="win-subtitle">All prepositions completed!</div>
+  <div class="win-stats" id="winStats"></div>
+  <button class="restart-btn" onclick="restartGame()">Play Again</button>
+</div>
+
+<div class="instructions">
+  Find 4 valid phrasal verbs for each preposition — one round per preposition<br>
+  Make a mistake and the preposition repeats!
+</div>
+
+<script>
+const verbs = ["run","find","come","work","turn","hold","put","try","break","give","look","sit","write","take","fall","lead","check","get","hand"];
+const prepositions = ["out","on","up","down","off","to","in"];
+const validPairs = {"run out":true,"run down":true,"find out":true,"come out":true,"come on":true,"come down":true,"come up":true,"come to":true,"come in":true,"work out":true,"check out":true,"check up":true,"check in":true,"turn out":true,"turn on":true,"turn down":true,"turn up":true,"turn off":true,"turn to":true,"turn in":true,"hold on":true,"hold up":true,"put out":true,"put on":true,"put up":true,"put down":true,"put off":true,"try on":true,"try out":true,"break up":true,"break out":true,"break down":true,"break in":true,"give out":true,"give up":true,"give to":true,"give in":true,"look out":true,"look up":true,"look down":true,"sit down":true,"write down":true,"take on":true,"take up":true,"take to":true,"take off":true,"get out":true,"get on":true,"get up":true,"get down":true,"get off":true,"get in":true,"fall off":true,"fall down":true,"fall out":true,"hand in":true,"lead to":true};
+
+let currentPreposition = "out", remainingPreps = [], completedPreps = new Set(), correctCount = 0, wrongCount = 0, roundWrongCount = 0, comboCount = 0, totalPairsMatched = 0, roundMatched = 0, roundNumber = 1, isFlipping = false, timerEnabled = false, timerRunning = false, timerSeconds = 0, timerInterval = null, roundCorrectVerbs = new Set(), roundFoundPairs = new Set();
+
+function initAudio() { if (!window.audioCtx) window.audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+function playBellSound() { initAudio(); const c=window.audioCtx,n=c.currentTime; [523.25,659.25,783.99,1046.5].forEach((f,i)=>{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(0.3,n+i*0.1);g.gain.exponentialRampToValueAtTime(0.001,n+i*0.1+0.6);o.connect(g);g.connect(c.destination);o.start(n+i*0.1);o.stop(n+i*0.1+0.6);});const o2=c.createOscillator(),g2=c.createGain();o2.type='sine';o2.frequency.value=1318.5;g2.gain.setValueAtTime(0.2,n+0.4);g2.gain.exponentialRampToValueAtTime(0.001,n+1.0);o2.connect(g2);g2.connect(c.destination);o2.start(n+0.4);o2.stop(n+1.0);}
+function playGlassSound() { initAudio(); const c=window.audioCtx,n=c.currentTime,b=c.createBuffer(1,c.sampleRate*0.5,c.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++){const t=i/c.sampleRate,e=Math.exp(-t*15);d[i]=(Math.random()*2-1)*e*0.5+Math.sin(t*4000+Math.random()*100)*e*0.3+Math.sin(t*8000+Math.random()*50)*e*0.15;if(t<0.01)d[i]=0;}const s=c.createBufferSource();s.buffer=b;const hp=c.createBiquadFilter();hp.type='highpass';hp.frequency.value=2000;const g=c.createGain();g.gain.setValueAtTime(0.6,n);g.gain.exponentialRampToValueAtTime(0.001,n+0.5);s.connect(hp);hp.connect(g);g.connect(c.destination);s.start(n);}
+function playClickSound() { initAudio(); const c=window.audioCtx,n=c.currentTime,o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.setValueAtTime(800,n);o.frequency.exponentialRampToValueAtTime(400,n+0.05);g.gain.setValueAtTime(0.15,n);g.gain.exponentialRampToValueAtTime(0.001,n+0.05);o.connect(g);g.connect(c.destination);o.start(n);o.stop(n+0.06);}
+function playUnlockSound() { initAudio(); const c=window.audioCtx,n=c.currentTime;[261.63,329.63,392,523.25,659.25,783.99,1046.5].forEach((f,i)=>{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(0.15,n+i*0.12);g.gain.exponentialRampToValueAtTime(0.001,n+i*0.12+0.8);o.connect(g);g.connect(c.destination);o.start(n+i*0.12);o.stop(n+i*0.12+0.8);});}
+
+function buildWheelNotches() { const c=document.getElementById('wheelNotches');c.innerHTML='';for(let i=0;i<60;i++){const n=document.createElement('div');n.className='notch';n.style.transform=`rotate(${i*6}deg)`;if(i%5===0){n.style.height='25px';n.style.width='5px';n.style.background='linear-gradient(to bottom, rgba(220,220,220,0.6), rgba(80,80,80,0.15))';}c.appendChild(n);} }
+function buildRemainingPills() { const p=document.getElementById('roundProgress');p.innerHTML='<div class="remaining-pills" id="pillContainer"></div>';const c=document.getElementById('pillContainer');prepositions.forEach(prep=>{const pill=document.createElement('span');pill.className='pill';pill.textContent=prep;if(completedPreps.has(prep))pill.classList.add('done-pill');else if(prep===currentPreposition)pill.classList.add('active-pill');c.appendChild(pill);}); }
+function buildPairDots() { const c=document.getElementById('pairDots');c.innerHTML='';for(let i=0;i<4;i++){const d=document.createElement('div');d.className='pair-dot';if(i<roundMatched)d.classList.add('filled');c.appendChild(d);} }
+function updateCardDisplay() { document.getElementById('prepositionText').textContent=currentPreposition;document.getElementById('prepositionTextBack').textContent=currentPreposition;document.getElementById('roundLabel').textContent=`Round ${roundNumber} — ${currentPreposition}`;document.getElementById('pairCounter').textContent=`${roundMatched} / 4`;buildPairDots();buildRemainingPills(); }
+function buildVerbRing() { const ring=document.getElementById('verbRing');ring.innerHTML='';const radius=225,count=verbs.length;verbs.forEach((verb,i)=>{const ang=(i/count)*360-90,rad=(ang*Math.PI)/180;const slot=document.createElement('div');slot.className='verb-slot';slot.style.transform=`translate(${Math.cos(rad)*radius}px, ${Math.sin(rad)*radius}px)`;const btn=document.createElement('div');btn.className='verb-btn';btn.textContent=verb;if(roundCorrectVerbs.has(verb))btn.classList.add('correct');btn.addEventListener('click',()=>handleVerbClick(verb,btn));slot.appendChild(btn);ring.appendChild(slot);}); }
+
+function handleVerbClick(verb,btn) { if(isFlipping)return;initAudio();const pair=verb+" "+currentPreposition,fb=document.getElementById('pairFeedback'),glow=document.getElementById('glowRing');
+if(validPairs[pair]&&!roundFoundPairs.has(pair)){correctCount++;comboCount++;totalPairsMatched++;roundMatched++;roundFoundPairs.add(pair);roundCorrectVerbs.add(verb);btn.classList.add('correct');playBellSound();glow.className='glow-ring glow-green';setTimeout(()=>glow.className='glow-ring',600);fb.textContent=`✓ ${verb} ${currentPreposition}`;fb.className='pair-feedback correct-fb show';setTimeout(()=>fb.className='pair-feedback',800);updateScores();updateCardDisplay();if(comboCount>=2){const c=document.getElementById('comboDisplay');c.textContent=`🔥 ${comboCount}x COMBO!`;c.classList.add('visible');setTimeout(()=>c.classList.remove('visible'),1200);}if(roundMatched>=4)setTimeout(()=>completeRound(),500);}
+else if(validPairs[pair]&&roundFoundPairs.has(pair)){wrongCount++;roundWrongCount++;comboCount=0;btn.classList.add('wrong');setTimeout(()=>btn.classList.remove('wrong'),500);playGlassSound();glow.className='glow-ring glow-red';setTimeout(()=>glow.className='glow-ring',600);fb.textContent=`✗ Already found!`;fb.className='pair-feedback wrong-fb show';setTimeout(()=>fb.className='pair-feedback',800);updateScores();}
+else{wrongCount++;roundWrongCount++;comboCount=0;btn.classList.add('wrong');setTimeout(()=>btn.classList.remove('wrong'),500);playGlassSound();glow.className='glow-ring glow-red';setTimeout(()=>glow.className='glow-ring',600);fb.textContent=`✗ "${verb} ${currentPreposition}" is not valid`;fb.className='pair-feedback wrong-fb show';setTimeout(()=>fb.className='pair-feedback',1000);updateScores();} }
+
+function completeRound() { isFlipping=true;const ov=document.getElementById('roundTransition');const hadMistakes=roundWrongCount>0;
+if(hadMistakes){ov.innerHTML=`<div class="round-transition-text">Mistakes made!</div><div class="round-transition-sub">${currentPreposition} repeats!</div>`;ov.classList.add('visible');setTimeout(()=>{ov.classList.remove('visible');startNextRound(true);},1500);}
+else{completedPreps.add(currentPreposition);remainingPreps=remainingPreps.filter(p=>p!==currentPreposition);if(remainingPreps.length===0){ov.innerHTML=`<div class="round-transition-text">${currentPreposition} Complete!</div><div class="round-transition-sub">🔓 Safe unlocked!</div>`;ov.classList.add('visible');setTimeout(()=>{ov.classList.remove('visible');playUnlockSound();showWinScreen();},1500);}else{ov.innerHTML=`<div class="round-transition-text">${currentPreposition} Complete!</div><div class="round-transition-sub">Moving on...</div>`;ov.classList.add('visible');setTimeout(()=>{ov.classList.remove('visible');setTimeout(()=>startNextRound(false),300);},1500);}} }
+
+function startNextRound(isRepeat) { if(remainingPreps.length===0){showWinScreen();return;}roundNumber++;roundMatched=0;roundWrongCount=0;roundCorrectVerbs.clear();roundFoundPairs.clear();isFlipping=false;if(!isRepeat)currentPreposition=remainingPreps[Math.floor(Math.random()*remainingPreps.length)];document.getElementById('centerCard').classList.toggle('flipped');setTimeout(()=>{updateCardDisplay();buildVerbRing();},400); }
+function updateScores() { document.getElementById('correctScore').textContent=correctCount;document.getElementById('wrongScore').textContent=wrongCount;document.getElementById('progressBar').style.width=(completedPreps.size/prepositions.length)*100+'%'; }
+function showWinScreen() { const ov=document.getElementById('winOverlay');ov.classList.add('visible');ov.style.animation='showWin 0.5s ease forwards';const acc=correctCount+wrongCount>0?Math.round((correctCount/(correctCount+wrongCount))*100):0;const t=timerEnabled?formatTime(timerSeconds):'N/A';document.getElementById('winStats').innerHTML=`Pairs: ${correctCount}<br>Mistakes: ${wrongCount}<br>Accuracy: ${acc}%<br>Rounds: ${roundNumber}<br>Time: ${t}`; }
+function formatTime(s){return `${Math.floor(s/60).toString().padStart(2,'0')}:${(s%60).toString().padStart(2,'0')}`;}
+function toggleTimer() { timerEnabled=!timerEnabled;const btn=document.getElementById('timerToggle'),disp=document.getElementById('timerDisplay');if(timerEnabled){btn.textContent='⏸';btn.classList.add('active');if(!timerRunning){timerRunning=true;timerInterval=setInterval(()=>{timerSeconds++;disp.textContent=formatTime(timerSeconds);},1000);}}else{btn.textContent='▶';btn.classList.remove('active');if(timerRunning){timerRunning=false;clearInterval(timerInterval);}} }
+function restartGame() { correctCount=wrongCount=roundWrongCount=comboCount=totalPairsMatched=roundMatched=0;roundNumber=1;isFlipping=false;completedPreps.clear();roundCorrectVerbs.clear();roundFoundPairs.clear();remainingPreps=[...prepositions];if(timerEnabled){timerSeconds=0;document.getElementById('timerDisplay').textContent='00:00';}document.getElementById('winOverlay').classList.remove('visible');document.getElementById('comboDisplay').classList.remove('visible');document.getElementById('centerCard').classList.remove('flipped');currentPreposition=remainingPreps[Math.floor(Math.random()*remainingPreps.length)];updateCardDisplay();updateScores();buildVerbRing(); }
+
+function init() { buildWheelNotches();remainingPreps=[...prepositions];currentPreposition=remainingPreps[Math.floor(Math.random()*remainingPreps.length)];updateCardDisplay();updateScores();buildVerbRing(); }
+init();
+</script>
+</body>
+</html>
